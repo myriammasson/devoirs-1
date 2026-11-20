@@ -1,0 +1,44 @@
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+import phik
+from phik.report import plot_correlation_matrix
+
+# 1. Recherche et chargement du fichier train.csv sur Kaggle
+df = pd.read_csv('train.csv')
+
+# 2. Feature Engineering (extraction de l'information utile)
+# A. Depuis 'Cabin' -> Présence ou non d'une cabine (binaire)
+df['Has_Cabin'] = df['Cabin'].notna().astype(int)
+
+# B. Depuis 'Name' -> Extraction du titre et regroupement des titres rares
+df['Title'] = df['Name'].str.extract(r' ([A-Za-z]+)\.', expand=False)
+titres_rares = ['Lady', 'Countess', 'Capt', 'Col', 'Don', 'Dr', 'Major', 'Rev', 'Sir', 'Jonkheer', 'Dona']
+df['Title'] = df['Title'].replace(titres_rares, 'Rare')
+df['Title'] = df['Title'].replace({'Mlle': 'Miss', 'Ms': 'Miss', 'Mme': 'Mrs'})
+
+# C. Depuis 'Ticket' -> Nombre de personnes partageant le même billet (taille du groupe)
+df['Ticket_Group_Size'] = df.groupby('Ticket')['Ticket'].transform('count')
+
+# 3. Suppression des colonnes brutes devenues redondantes ou inutiles
+df_clean = df.drop(columns=['PassengerId', 'Name', 'Ticket', 'Cabin'])
+
+# 4. Définition des variables numériques continues
+interval_cols = ['Age', 'Fare', 'SibSp', 'Parch', 'Ticket_Group_Size']
+
+# 5. Calcul de la matrice Phi-K (11 variables au total)
+phik_overview = df_clean.phik_matrix(interval_cols=interval_cols)
+
+# 6. Affichage graphique ajusté pour 11 variables
+plot_correlation_matrix(
+    phik_overview.values, 
+    x_labels=phik_overview.columns, 
+    y_labels=phik_overview.index, 
+    vmin=0, vmax=1, color_map="Blues", 
+    title=r"Matrice $\phi_K$ enrichie - Titanic (11 variables)", 
+    fontsize_factor=1.0, 
+    figsize=(11, 9)
+)
+plt.tight_layout()
+plt.show()
+
